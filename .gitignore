@@ -1,0 +1,128 @@
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+.env
+.venv
+*.pyc
+*.pyo
+
+data/raw/*
+!data/raw/.keep
+data/adata/*
+data/embeddings/*
+data/figs/*
+
+# Environments
+.env
+.env.*
+.envrc
+.venv/
+.venv*/
+venv/
+venv*/
+env/
+env*/
+.conda*/
+
+# Local envs at repo root (absolute paths resolved by Git from repo root)
+/helical-env/
+/helical-env-310/
+/helical-env-310-share/
+/helical-env-py310/
+/helical-env*/
+
+# Local Geneformer clone (ignore entire directory)
+/Geneformer/
+
+# Local activation helpers (machine-specific)
+/activate_env.sh
+
+# Dev/test caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pylint.d/
+.coverage
+coverage.xml
+
+# Editor/OS junk
+Thumbs.db
+*.swp
+*.swo
+*.orig
+*.bak
+
+# Large ML artifacts
+*.pt
+*.bin
+*.ckpt
+*.safetensors
+
+# Editors/IDE
+.vscode/
+.idea/
+
+# Python packaging/build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs and experiment runs
+logs/
+**/logs/**
+runs/
+**/runs/**
+wandb/
+**/wandb/**
+lightning_logs/
+**/lightning_logs/**
+tensorboard/
+**/tensorboard/**
+
+# Model artifacts and checkpoints
+checkpoints/
+**/checkpoints/**
+models/
+**/models/**
+
+
+# Outputs and reports
+outputs/
+results/
+reports/
+slides/
+
+# Temporary and cache files
+.cache/
+**/.cache/**
+*.cache
+tmp/
+**/tmp/**
+
+# Data (project-specific)
+data/interim/*
+data/processed/*
+data/external/*
+data/tmp/*
+!data/**/.keep
+
+
+# Security/keys (never commit secrets)
+*.pem
+*.key
+*.crt
+*.p12
+*.keystore
+*.jks
+id_rsa*
+id_dsa*
+secrets.*
+secret.*
+*.credentials
+*.token
+*.tokens
+
+# AnnData files
+*.h5ad
+
