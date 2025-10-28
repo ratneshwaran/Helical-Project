@@ -10,7 +10,12 @@ import torch
 from transformers import AutoModel
 
 # Import custom Geneformer tokenizer
-from geneformer import TranscriptomeTokenizer, TOKEN_DICTIONARY_FILE
+from geneformer import (
+    TranscriptomeTokenizer,
+    TOKEN_DICTIONARY_FILE,
+    ENSEMBL_DICTIONARY_FILE,
+)
+import pickle
 
 
 logger = logging.getLogger(__name__)
@@ -51,12 +56,21 @@ class GFEmbedder:
             logger.info("Loading tokenizer and model: %s / %s", self.model_repo, self.submodel)
             # Use the pre-installed tokenizer dictionary
             self.tokenizer = TranscriptomeTokenizer()
+            # Load gene name -> Ensembl ID dictionary to map symbols to tokenizer keys
+            try:
+                with open(ENSEMBL_DICTIONARY_FILE, "rb") as f:
+                    name_to_id = pickle.load(f)
+                # Normalize keys to uppercase strings for robust matching
+                self.gene_name_to_ensembl = {str(k).upper(): v for k, v in name_to_id.items()}
+            except Exception:
+                self.gene_name_to_ensembl = {}
             # Load the model as before
             self.model = AutoModel.from_pretrained(self.model_repo, subfolder=self.submodel)
             self.model.to(self.device)
             self.model.eval()
         else:
             logger.warning("GF_OFFLINE=1 -> using pseudo-embeddings for smoke tests.")
+            self.gene_name_to_ensembl = {}
 
     def _get_vocab_set(self) -> set[str]:
         if self.offline:
@@ -97,7 +111,20 @@ class GFEmbedder:
         X = adata.layers.get("counts", adata.X)
         X = X.toarray() if hasattr(X, "toarray") else np.asarray(X)
         n_cells, n_genes = X.shape
+        # Prefer explicit gene symbol column; otherwise use var_names
         gene_symbols = adata.var.get("gene_symbol", adata.var_names).astype(str).tolist()
+
+        # Map gene symbols to tokenizer keys (Ensembl IDs) when needed
+        if not self.offline:
+            mapped_gene_ids: List[str] = []
+            for sym in gene_symbols:
+                # If already an Ensembl-like ID, keep it; else map via dictionary
+                if sym.upper().startswith("ENSG"):
+                    mapped_gene_ids.append(sym)
+                else:
+                    mapped_gene_ids.append(self.gene_name_to_ensembl.get(sym.upper(), sym))
+        else:
+            mapped_gene_ids = gene_symbols
 
         vocab = self._get_vocab_set()
         if not self.offline:
@@ -108,13 +135,13 @@ class GFEmbedder:
             order = np.argsort(-X[i])
             kept: List[int] = []
             for j in order:
-                g = gene_symbols[j]
-                if g in vocab:
+                g_id = mapped_gene_ids[j]
+                if g_id in vocab:
                     if self.offline:
-                        kept.append(abs(hash(g)) % 10000)
+                        kept.append(abs(hash(g_id)) % 10000)
                     else:
-                        # Map gene symbol to token id via gene_token_dict
-                        token_id = self.tokenizer.gene_token_dict.get(g)
+                        # Map Ensembl ID to token id via gene_token_dict
+                        token_id = self.tokenizer.gene_token_dict.get(g_id)
                         if token_id is not None:
                             kept.append(token_id)
                 if len(kept) >= top_k:
