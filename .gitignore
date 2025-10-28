@@ -126,3 +126,6 @@ secret.*
 # AnnData files
 *.h5ad
 
+# Embeddings (numpy arrays)
+*.npz
+
