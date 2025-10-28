@@ -66,7 +66,15 @@ class GFEmbedder:
                 self.gene_name_to_ensembl = {}
             # Load the model as before
             self.model = AutoModel.from_pretrained(self.model_repo, subfolder=self.submodel)
-            self.model.to(self.device)
+            # Prefer FP16 on CUDA for speed
+            try:
+                torch.set_float32_matmul_precision("high")
+            except Exception:
+                pass
+            if self.device.type == "cuda":
+                self.model.to(self.device, dtype=torch.float16)
+            else:
+                self.model.to(self.device)
             self.model.eval()
         else:
             logger.warning("GF_OFFLINE=1 -> using pseudo-embeddings for smoke tests.")
@@ -130,9 +138,17 @@ class GFEmbedder:
         if not self.offline:
             assert self.tokenizer is not None
 
+        # If a rank-based perturbation was applied, use the provided rank matrix
+        rank_matrix = adata.obsm.get("rank_matrix", None)
+
         tokens: List[List[int]] = []
         for i in range(n_cells):
-            order = np.argsort(-X[i])
+            if rank_matrix is not None:
+                # Lower rank index = higher priority; argsort ascending
+                order = np.argsort(rank_matrix[i])
+            else:
+                # Default: descending expression order
+                order = np.argsort(-X[i])
             kept: List[int] = []
             for j in order:
                 g_id = mapped_gene_ids[j]
@@ -190,10 +206,14 @@ class GFEmbedder:
             chunk = token_batches[i : i + batch_size]
             input_ids = pad_to_max([list(s) for s in chunk])
             attention_mask = (input_ids != self._pad_token_id()).long()
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            if device.type == "cuda":
+                with torch.autocast(device_type="cuda", dtype=torch.float16):
+                    outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+            else:
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask)
             # Assuming outputs.last_hidden_state with CLS at index 0
             hidden_states = outputs.last_hidden_state  # [B, T, H]
-            cls_vec = hidden_states[:, 0, :].detach().cpu().numpy()
+            cls_vec = hidden_states[:, 0, :].float().detach().cpu().numpy()
             all_out.append(cls_vec)
         return np.concatenate(all_out, axis=0)
 
