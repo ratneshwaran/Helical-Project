@@ -11,7 +11,7 @@ from umap import UMAP
 
 
 def umap_2d(X: np.ndarray, n_neighbors: int = 15, min_dist: float = 0.1) -> np.ndarray:
-    reducer = UMAP(n_components=2, n_neighbors=n_neighbors, min_dist=min_dist, random_state=42)
+    reducer = UMAP(n_components=2, n_neighbors=n_neighbors, min_dist=min_dist)
     pts = reducer.fit_transform(X)
     return pts
 
