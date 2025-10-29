@@ -152,7 +152,13 @@ def knock_expr(
 
     adata_out = adata.copy()
     adata_out.X = X
-    # Keep original counts in layers["counts"] already in input
+    # Ensure downstream tokenization sees perturbed expression by updating counts layer
+    # This preserves library size (renormalized above)
+    try:
+        adata_out.layers["counts"] = X
+    except Exception:
+        # Fallback if layers dict missing
+        adata_out.layers["counts"] = X
     return adata_out
 
 
